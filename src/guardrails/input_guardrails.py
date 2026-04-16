@@ -38,9 +38,12 @@ def detect_injection(user_input: str) -> bool:
         True if injection detected, False otherwise
     """
     INJECTION_PATTERNS = [
-        # TODO: Add at least 5 regex patterns
-        # Example:
-        # r"ignore (all )?(previous|above) instructions",
+        r"ignore (all )?(previous|above) instructions",
+        r"you are now",
+        r"system prompt",
+        r"reveal your (instructions|prompt)",
+        r"pretend you are",
+        r"act as (a |an )?unrestricted",
     ]
 
     for pattern in INJECTION_PATTERNS:
@@ -75,7 +78,16 @@ def topic_filter(user_input: str) -> bool:
     # 2. If input doesn't contain any allowed topic -> return True
     # 3. Otherwise -> return False (allow)
 
-    pass  # Replace with your implementation
+    # Check for blocked topics
+    for topic in BLOCKED_TOPICS:
+        if topic.lower() in input_lower:
+            return True
+    
+    # Check if any allowed topic is present
+    has_allowed_topic = any(topic.lower() in input_lower for topic in ALLOWED_TOPICS)
+    
+    # Block if no allowed topic found
+    return not has_allowed_topic
 
 
 # ============================================================
@@ -135,7 +147,15 @@ class InputGuardrailPlugin(base_plugin.BasePlugin):
         #    - If True: increment blocked_count, return self._block_response("...")
         # 3. If both are False: return None (let message through)
 
-        pass  # Replace with your implementation
+        if detect_injection(text):
+            self.blocked_count += 1
+            return self._block_response("❌ Prompt injection detected. Please rephrase your question.")
+        
+        if topic_filter(text):
+            self.blocked_count += 1
+            return self._block_response("❌ This topic is not supported. Please ask about banking services.")
+        
+        return None
 
 
 # ============================================================

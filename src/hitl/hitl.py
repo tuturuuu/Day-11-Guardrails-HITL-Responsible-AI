@@ -66,31 +66,44 @@ class ConfidenceRouter:
             RoutingDecision with routing action and metadata
         """
         # TODO 12: Implement routing logic
-        #
+        
         # 1. Check if action_type is in HIGH_RISK_ACTIONS
-        #    -> If yes: always escalate (action="escalate", priority="high",
-        #       requires_human=True, reason="High-risk action: {action_type}")
-        #
-        # 2. Check confidence thresholds:
-        #    - confidence >= 0.9:
-        #      action="auto_send", priority="low",
-        #      requires_human=False, reason="High confidence"
-        #
-        #    - 0.7 <= confidence < 0.9:
-        #      action="queue_review", priority="normal",
-        #      requires_human=True, reason="Medium confidence — needs review"
-        #
-        #    - confidence < 0.7:
-        #      action="escalate", priority="high",
-        #      requires_human=True, reason="Low confidence — escalating"
-
-        return RoutingDecision(
+        if action_type in HIGH_RISK_ACTIONS:
+            return RoutingDecision(
+            action="escalate",
+            confidence=confidence,
+            reason=f"High-risk action: {action_type}",
+            priority="high",
+            requires_human=True,
+            )
+        
+        # 2. Check confidence thresholds
+        if confidence >= self.HIGH_THRESHOLD:
+            return RoutingDecision(
             action="auto_send",
             confidence=confidence,
-            reason="TODO: implement routing logic",
+            reason="High confidence",
             priority="low",
             requires_human=False,
-        )  # TODO: Replace with implementation
+            )
+        elif confidence >= self.MEDIUM_THRESHOLD:
+            return RoutingDecision(
+            action="queue_review",
+            confidence=confidence,
+            reason="Medium confidence — needs review",
+            priority="normal",
+            requires_human=True,
+            )
+        else:
+            return RoutingDecision(
+            action="escalate",
+            confidence=confidence,
+            reason="Low confidence — escalating",
+            priority="high",
+            requires_human=True,
+            )
+
+             # TODO: Replace with implementation
 
 
 # ============================================================
@@ -109,27 +122,27 @@ class ConfidenceRouter:
 hitl_decision_points = [
     {
         "id": 1,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
+        "name": "Large Transaction Verification",
+        "trigger": "Transaction amount exceeds daily limit or unusual for account holder",
+        "hitl_model": "human-in-the-loop",
+        "context_needed": "Account history, transaction pattern, amount, recipient, time of day",
+        "example": "Customer with average $500/day activity suddenly attempts $50,000 transfer",
     },
     {
         "id": 2,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
+        "name": "Account Data Modification Conflict",
+        "trigger": "System detects conflicting instructions or ambiguous data change requests",
+        "hitl_model": "human-as-tiebreaker",
+        "context_needed": "Current account data, requested changes, conflicting sources, account verification status",
+        "example": "Address update request received from multiple channels with mismatched information",
     },
     {
         "id": 3,
-        "name": "TODO: Name this decision point",
-        "trigger": "TODO: When does this trigger?",
-        "hitl_model": "TODO: human-in-the-loop / human-on-the-loop / human-as-tiebreaker",
-        "context_needed": "TODO: What does the reviewer need to see?",
-        "example": "TODO: Give a concrete example scenario",
+        "name": "Fraud Risk Assessment",
+        "trigger": "Medium confidence fraud detection OR multiple risk signals detected simultaneously",
+        "hitl_model": "human-on-the-loop",
+        "context_needed": "Risk signals, device info, IP location, login history, account age, previous fraud flags",
+        "example": "New device login from different country attempting password reset within 24 hours",
     },
 ]
 

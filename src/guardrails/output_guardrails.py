@@ -41,12 +41,11 @@ def content_filter(response: str) -> dict:
 
     # PII patterns to check
     PII_PATTERNS = {
-        # TODO: Add regex patterns for:
-        # - VN phone number: r"0\d{9,10}"
-        # - Email: r"[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}"
-        # - National ID (CMND/CCCD): r"\b\d{9}\b|\b\d{12}\b"
-        # - API key pattern: r"sk-[a-zA-Z0-9-]+"
-        # - Password pattern: r"password\s*[:=]\s*\S+"
+        "VN_Phone": r"0\d{9,10}",
+        "Email": r"[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}",
+        "National_ID": r"\b\d{9}\b|\b\d{12}\b",
+        "API_Key": r"sk-[a-zA-Z0-9-]+",
+        "Password": r"password\s*[:=]\s*\S+",
     }
 
     for name, pattern in PII_PATTERNS.items():
@@ -91,13 +90,13 @@ If UNSAFE, add a brief reason on the next line.
 
 # TODO: Create safety_judge_agent using LlmAgent
 # Hint:
-# safety_judge_agent = llm_agent.LlmAgent(
-#     model="gemini-2.0-flash",
-#     name="safety_judge",
-#     instruction=SAFETY_JUDGE_INSTRUCTION,
-# )
+safety_judge_agent = llm_agent.LlmAgent(
+    model="gemini-2.0-flash",
+    name="safety_judge",
+    instruction=SAFETY_JUDGE_INSTRUCTION,
+)
 
-safety_judge_agent = None  # TODO: Replace with implementation
+# safety_judge_agent = None  # TODO: Replace with implementation
 judge_runner = None
 
 
@@ -171,15 +170,21 @@ class OutputGuardrailPlugin(base_plugin.BasePlugin):
         response_text = self._extract_text(llm_response)
         if not response_text:
             return llm_response
+        
+        # 1. Content filter check
+        filter_result = content_filter(response_text)
+        if not filter_result["safe"]:
+            self.redacted_count += 1
+            redacted_text = filter_result["redacted"]
+            llm_response.content.parts[0].text = redacted_text
 
-        # TODO: Implement logic:
-        # 1. Call content_filter(response_text)
-        #    - If issues found: replace llm_response.content with redacted version
-        #    - Increment self.redacted_count
-        # 2. If use_llm_judge: call llm_safety_check(response_text)
-        #    - If unsafe: replace llm_response.content with a safe message
-        #    - Increment self.blocked_count
-        # 3. Return llm_response (possibly modified)
+        # 2. LLM safety judge check
+        if self.use_llm_judge:
+            judge_result = await llm_safety_check(response_text)
+            if not judge_result["safe"]:
+                self.blocked_count += 1
+                safe_message = "I cannot provide this response as it may contain unsafe content. Please rephrase your question."
+                llm_response.content.parts[0].text = safe_message
 
         return llm_response  # TODO: modify if needed
 
